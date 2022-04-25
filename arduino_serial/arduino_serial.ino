@@ -1,91 +1,76 @@
 #include "arduino_serial.h"
+#include <Motor.h>
+
+Motor all_motors[] = { Motor(MOTORS[0][0],MOTORS[0][1],MOTORS[0][2]),
+                       Motor(MOTORS[1][0],MOTORS[1][1],MOTORS[1][2]),
+                       Motor(MOTORS[2][0],MOTORS[2][1],MOTORS[2][2]),
+                       Motor(MOTORS[3][0],MOTORS[3][1],MOTORS[3][2]) };
+
+Motor all_lifts[] = {  Motor(LIFTS[0][0],LIFTS[0][1],LIFTS[0][2],LIFTS[0][3],LIFTS[0][4]),
+                       Motor(LIFTS[1][0],LIFTS[1][1],LIFTS[1][2],LIFTS[1][3],LIFTS[1][4]) };
 
 void setup() {
   Serial.begin(115200);
+  // Ultrasonic Sensors
   for (int i=0; i<4; i++) {
-    pinMode(ALL_US[i][0], OUTPUT);
-    pinMode(ALL_US[i][1], INPUT);
+    pinMode(US[i][0], OUTPUT);
+    pinMode(US[i][1], INPUT);
   }
 
-  pinMode(ALL_BUMPERS[0], INPUT_PULLUP);
-  pinMode(ALL_BUMPERS[1], INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ALL_BUMPERS[0]), bumper_left, FALLING);
-  attachInterrupt(digitalPinToInterrupt(ALL_BUMPERS[1]), bumper_right, FALLING);
+  // Bumpers
+  pinMode(BUMPERS[0], INPUT);
+  pinMode(BUMPERS[1], INPUT);
 
+  // Limit Switches
+  limitState[0]=0; limitState[1]=0;
+  pinMode(LIMITS[0], INPUT_PULLUP);
+  pinMode(LIMITS[1], INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(LIMITS[0]), readLimit<0>, FALLING);
+  attachInterrupt(digitalPinToInterrupt(LIMITS[1]), readLimit<1>, FALLING);
+
+  // Buzzer
   pinMode(BUZZER, OUTPUT);
+  buzz(); // "Beginning setup"
 
-  for (int i=0; i<4; i++) {
-    pinMode(MOTORS[i][0], OUTPUT);
-    pinMode(MOTORS[i][1], OUTPUT);
-    pinMode(MOTORS[i][2], OUTPUT);
-  }
+  // Wheel motors; set up with Motors.h
 
-  pinMode(VACUUM[0], OUTPUT);
-  pinMode(VACUUM[1], OUTPUT);
+  // Vacuum; BLDC
+  pinMode(VACUUM, OUTPUT);
 
-  // Lifts
-  for (int i=0; i<2; i++) {
-    pinMode(LIFTS[i][0], OUTPUT);
-    pinMode(LIFTS[i][1], OUTPUT);
-    pinMode(LIFTS[i][2], OUTPUT);
-    pinMode(LIFTS[i][3], INPUT);
-    pinMode(LIFTS[i][4], INPUT);
-    LIFTS[i][5] = 0;
-  }
-  attachInterrupt(digitalPinToInterrupt(LIFTS[0][3]), readLift0, RISING);
-  attachInterrupt(digitalPinToInterrupt(LIFTS[1][3]), readLift1, RISING);
+  // Lift Motors; set up with Motors.h
+  attachInterrupt(digitalPinToInterrupt(all_lifts[0].enca), readLift<0>, RISING);
+  attachInterrupt(digitalPinToInterrupt(all_lifts[1].enca), readLift<1>, RISING);
 
   // IMU setup
-  Wire.begin();
-  Wire.setClock(400000);
-  bool initialized = false;
-  while (!initialized)
-  {
-    myICM.begin(Wire, AD0_VAL);
-    if (myICM.status != ICM_20948_Stat_Ok)
-    {
-      Serial.println(F("Trying IMU again..."));
-      delay(500);
-    }
-    else initialized = true;
-  }
-  bool success = true;
-  success &= (myICM.initializeDMP() == ICM_20948_Stat_Ok); // Initialize the DMP
-  success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) == ICM_20948_Stat_Ok); // Enable the DMP Game Rotation Vector sensor
-  success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok); // // Configuring DMP to output data; set to the maximum
-  success &= (myICM.enableFIFO() == ICM_20948_Stat_Ok); // Enable the FIFO
-  success &= (myICM.enableDMP() == ICM_20948_Stat_Ok); // Enable the DMP
-  success &= (myICM.resetDMP() == ICM_20948_Stat_Ok); // Reset DMP
-  success &= (myICM.resetFIFO() == ICM_20948_Stat_Ok); // Reset FIFO
-  if (success)
-    Serial.println(F("DMP enabled!"));
-  else
-    Serial.println(F("Enable DMP failed!"));
+  IMU_setup();
+
+  // Main Code
+  main_operation();
 }
 
 
 void loop() {
-  if (Serial.available() > 0) {
-    // Read in Raspberry Pi command
-    Serial.readStringUntil('\n').toCharArray(command, 100);
-    ptr = strtok(command, ",");
-    int index = 0;
-    while (ptr != NULL) {
-      strings[index++] = ptr;
-      ptr = strtok(NULL, ",");
-    }
-
-    // Interpret the strings
-    // for (int i=0; i<index; i++)
-    //  Serial.println(strings[i]);
-    
-    if (strings[0].equals("get_US"))
-      get_US(strings[1]);
-    if (strings[0].equals("buzz"))
-      buzz();
-
-  }
-//   Serial.println(get_distance(ALL_US[0]));
+//  if (Serial.available() > 0) {
+//    // Read in Raspberry Pi command
+//    Serial.readStringUntil('\n').toCharArray(command, 100);
+//    ptr = strtok(command, ",");
+//    int index = 0;
+//    while (ptr != NULL) {
+//      strings[index++] = ptr;
+//      ptr = strtok(NULL, ",");
+//    }
+//
+//    // Interpret the strings
+//    // for (int i=0; i<index; i++)
+//    //  Serial.println(strings[i]);
+//    
+//    if (strings[0].equals("get_US"))
+//      get_US(strings[1]);
+//    if (strings[0].equals("buzz"))
+//      buzz();
+//
+//  }
+  
 }
 
 double get_distance(int U[]) {
@@ -103,145 +88,142 @@ double get_distance(int U[]) {
 }
 
 double get_US(String sensor) {
-  if      (sensor.equals("FRONT_LEFT"))  return get_distance(ALL_US[0]);
-  else if (sensor.equals("FRONT_RIGHT")) return get_distance(ALL_US[1]);
-  else if (sensor.equals("LEFT"))        return get_distance(ALL_US[2]);
-  else if (sensor.equals("RIGHT"))       return get_distance(ALL_US[3]);
+  if      (sensor.equals("FRONT_LEFT"))  return get_distance(US[0]);
+  else if (sensor.equals("FRONT_RIGHT")) return get_distance(US[1]);
+  else if (sensor.equals("LEFT"))        return get_distance(US[2]);
+  else if (sensor.equals("RIGHT"))       return get_distance(US[3]);
+}
+double front_US_within(int dist) {
+  return (get_US("FRONT_LEFT")<dist && get_US("FRONT_RIGHT")<dist);
 }
 
-void bumper_left() {
-  if (millis() - lastDebounce < DEBOUNCE_DELAY) return;
-  lastDebounce = millis();
-  bumperState = 1;
-}
-void bumper_right() {
-  if (millis() - lastDebounce < DEBOUNCE_DELAY) return;
-  lastDebounce = millis();
-  bumperState = 2;
-}
 void buzz() {
   tone(BUZZER, 1000);
   delay(100);
   noTone(BUZZER);
 }
 
-// Move/Rotate robot for delay seconds (speed is positive)
-void move(String dir, double spd, double del) {
-  if      (dir.equals("FORWARD"))  motors( spd,  spd,  spd,  spd);
+// Run the front left motor, front right motor, back left motor, and back right motor
+// Move/Rotate robot forever (speed is positive)
+void move(String dir, double spd) {
+  if      (dir.equals("OFF"))      motors(0,0,0,0);
+  else if (dir.equals("FORWARD"))  motors( spd,  spd,  spd,  spd);
   else if (dir.equals("BACKWARD")) motors(-spd, -spd, -spd, -spd);
   else if (dir.equals("LEFT"))     motors(-spd,  spd,  spd, -spd);
   else if (dir.equals("RIGHT"))    motors( spd, -spd, -spd,  spd);
   else if (dir.equals("CW"))       motors( spd, -spd,  spd, -spd);
   else if (dir.equals("CCW"))      motors(-spd,  spd, -spd,  spd);
-
-  delay(del);
-  motors(0,0,0,0);
 }
+// Move/Rotate robot for delay seconds (speed is positive)
+void move(String dir, double spd, double del) {
+  move(dir, spd);
+  delay(del);
+  move("OFF",0);
+}
+// speed is -255 to 255
+void motors(double spd0, double spd1, double spd2, double spd3) {
+  all_motors[0].setSpeed(spd0);
+  all_motors[1].setSpeed(spd1);
+  all_motors[2].setSpeed(spd2);
+  all_motors[3].setSpeed(spd3);
+}
+
 // Align robot to be (roughly) parallel to stairs
 void align() {
-  double spd=80, del=10, thr=5, yaw=0;
+  double thr=5, yaw;
   while(true) {
     yaw = get_yaw();
-    if      (yaw > thr) move("CW",  spd, del);
-    else if (yaw <-thr) move("CCW", spd, del);
-    else {
-      motors(0,0,0,0);
-      return;
-    }
+    if      (yaw >  thr) move("CW",  MOTOR_SPD, MOTOR_DEL);
+    else if (yaw < -thr) move("CCW", MOTOR_SPD, MOTOR_DEL);
+    else               { move("OFF", 0); return; }
   }
 }
 
-// Run the front left motor, front right motor, back left motor, and back right motor
-// spd must be from [-255, 255]
-void motors(double spd0, double spd1, double spd2, double spd3) {
-  motor(0, spd0);
-  motor(1, spd1);
-  motor(2, spd2);
-  motor(3, spd3);
-}
-void motor(int i, double spd) {
-  if (spd == 0) {
-    digitalWrite(MOTORS[i][0], LOW);
-    digitalWrite(MOTORS[i][1], LOW);
-  }
-  else if (spd > 0) {
-    analogWrite(MOTORS[i][2], spd);
-    digitalWrite(MOTORS[i][0], HIGH);
-    digitalWrite(MOTORS[i][1], LOW);
-  }
-  else if (spd < 0) {
-    analogWrite(MOTORS[i][2], -spd);
-    digitalWrite(MOTORS[i][0], LOW);
-    digitalWrite(MOTORS[i][1], HIGH);
-  } 
+// Read limit switches
+template <int lim>
+void readLimit() {
+  if (limitState[lim] == 0)
+    limitState[lim] = 1;
 }
 
 // Turn vacuum ON or OFF
 void vacuum(String state) {
-  if (state.equals("ON")) {
-    digitalWrite(VACUUM[0], HIGH);
-    digitalWrite(VACUUM[0], LOW);
-  }
-  else if (state.equals("OFF")) {
-    digitalWrite(VACUUM[0], LOW);
-    digitalWrite(VACUUM[0], LOW);
-  }
+  if      (state.equals("ON"))  digitalWrite(VACUUM, HIGH);
+  else if (state.equals("OFF")) digitalWrite(VACUUM, LOW);
 }
 void sweep(String state) {
-  double spd=80, del=10, thr=5;
+  double thr=5;
   vacuum("ON");
-  
-  while(True) {
-    if (state.equals("LEFT")) {
-      motors("LEFT", spd, del);
-      if (bumperState == 1) break;
-    }
-    else if (state.equals("RIGHT")) {
-      motors("RIGHT", spd, del);
-      if (bumperState == 2) break;
-    }
+
+  move(state, MOTOR_SPD, MOTOR_DEL);
+  while(true) {
+    if (state.equals("LEFT")  && digitalRead(BUMPERS[0]) == LOW) break;
+    if (state.equals("RIGHT") && digitalRead(BUMPERS[1]) == LOW) break;
   }
   
-  bumperState = 0;
   vacuum("OFF");
-  motors(0,0,0,0);
+  move("OFF",0);
 }
 
-void lifts(String state) {
-  if (state.equals("UP")) {
-    // ???
-    setMotor(1, 0, LIFT[0][0], LIFT[0][1], LIFT[0][2]);
-    setMotor(1, 0, LIFT[1][0], LIFT[1][1], LIFT[1][2]);
+void lifts(String state) { // see Jaiden's code
+
+  // Change these vals to UP and DOWN targets!!!
+  all_lifts[0].target = (state.equals("UP")) ? 0 : 0;
+  all_lifts[1].target = (state.equals("UP")) ? 0 : 0;
+
+  for (int i=0; i<2; i++) {
+    // go up if pos < target; go down if pos > target
+    int pos    = all_lifts[i].pos;
+    int target = all_lifts[i].target;
+    if      (pos == target) { all_lifts[i].reached==1; }
+    else if (pos < target)  { all_lifts[i].reached==0; all_lifts[i].setSpeed(MOTOR_SPD); }
+    else if (pos > target)  { all_lifts[i].reached==0; all_lifts[i].setSpeed(-MOTOR_SPD); }
   }
-  else if (state.equals("DOWN")) {
-    // ???
-    setMotor(-1, 0, LIFT[0][0], LIFT[0][1], LIFT[0][2]);
-    setMotor(-1, 0, LIFT[1][0], LIFT[1][1], LIFT[1][2]);
-  }
+
+  // wait until both lifts reach target
+  while(!all_lifts[0].reached && !all_lifts[1].reached) ;
 }
-void setMotor(int dir, int pwmVal, int in1, int in2, int pwm){
-  analogWrite(pwm,pwmVal);
-  if(dir == 1){
-    digitalWrite(in1,HIGH);
-    digitalWrite(in2,LOW);
-  }
-  else if(dir == -1){
-    digitalWrite(in1,LOW);
-    digitalWrite(in2,HIGH);
-  }
-  else{
-    digitalWrite(in1,LOW);
-    digitalWrite(in2,LOW);
+
+template <int l>
+void readLift() {
+  int b = digitalRead(all_lifts[l].encb);
+  if (b<=0) all_lifts[l].pos++;
+  else      all_lifts[l].pos--;
+
+  // reached target
+  if (all_lifts[l].pos == all_lifts[l].target) {
+    all_lifts[l].setSpeed(0);
+    all_lifts[l].reached = 1;
   }  
 }
 
-void readLift(int i) {
-  int ENCB = digitalRead(LIFTS[i][3]);
-  if (ENCB>0) LIFTS[i][4]++;
-  else        LIFTS[i][4]--;
+void IMU_setup() {
+  Wire.begin();
+  Wire.setClock(400000);
+  while (true)
+  {
+    myICM.begin(Wire, AD0_VAL);
+    if (myICM.status != ICM_20948_Stat_Ok)
+    {
+      Serial.println(F("Trying IMU again..."));
+      delay(500);
+    }
+    else break;
+  }
+  
+  bool success = true;
+  success &= (myICM.initializeDMP() == ICM_20948_Stat_Ok); // Initialize the DMP
+  success &= (myICM.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) == ICM_20948_Stat_Ok); // Enable the DMP Game Rotation Vector sensor
+  success &= (myICM.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok); // // Configuring DMP to output data; set to the maximum
+  success &= (myICM.enableFIFO() == ICM_20948_Stat_Ok); // Enable the FIFO
+  success &= (myICM.enableDMP() == ICM_20948_Stat_Ok); // Enable the DMP
+  success &= (myICM.resetDMP() == ICM_20948_Stat_Ok); // Reset DMP
+  success &= (myICM.resetFIFO() == ICM_20948_Stat_Ok); // Reset FIFO
+  if (success)
+    Serial.println(F("DMP enabled!"));
+  else
+    Serial.println(F("Enable DMP failed!"));
 }
-void readLift0() { readLift(0); }
-void readLift1() { readLift(1); }
 
 double get_yaw() {
   icm_20948_DMP_data_t data;
@@ -289,53 +271,49 @@ void escape_operation() {
 
 // First half of robot goes up/down
 void traverse_0() {
-  double spd=80, del=10;
   if (POSITION.equals("BOTTOM")) {
     align();
-    while (get_US("FRONT_LEFT")>5 && get_US("FRONT_RIGHT")>5) // looking at next step
-      move("FORWARD", spd, del);
+    while (!front_US_within(5)) // looking at next step
+      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
     
     align();
     lifts("DOWN"); // push up
-    while (get_US("FRONT_LEFT")>10 && get_US("FRONT_RIGHT")>10) // looking at future step
-      move("FORWARD", spd, del);
+    while (!front_US_within(10)) // looking at future step
+      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
   }
   else if (POSITION.equals("TOP")) {
     align();
-    while (not_on_next_step) // looking down at next step
-      move("BACKWARD", spd, del);
+    while (limitState[0]==0 || limitState[0]==0) // looking down at next step
+      move("BACKWARD", MOTOR_SPD, MOTOR_DEL);
 
     align();
-    lifts("DOWN");
+    lifts("DOWN"); // set back lift on next step
   }
 }
 
 // Second half of robot goes up/down
 void traverse_1() {
-  double spd=80, del=10;
   if (POSITION.equals("BOTTOM")) {
     align();
     lifts("UP");
-    while (get_US("FRONT_LEFT")>5 && get_US("FRONT_RIGHT")>5) // looking at next step
-      move("FORWARD", spd, del);
+    while (!front_US_within(5)) // looking at next step
+      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
   }
   else if (POSITION.equals("TOP")) {
     align();
-    move("BACKWARD", spd, del) // needs to be precise enough for the front wheels to get off the previous step
+    move("BACKWARD", MOTOR_SPD, MOTOR_DEL); // needs to be precise enough for the front wheels to get off the previous step
     lifts("DOWN");
   }
 }
 
 void main_operation() {
-  buzz(); delay(100); // warn that operation is starting!
+  buzz(); buzz(); delay(100); // operation is starting!
 
   vacuum("OFF");
   lifts("UP");
   
-  if (get_US("FRONT_LEFT")<10 && get_US("FRONT_RIGHT")<10)
-    POSITION = "BOTTOM";
-  else
-    POSITION = "TOP";
+  if (front_US_within(10)) POSITION = "BOTTOM";
+  else                     POSITION = "TOP";
 
   while(STEPS != PASSES) {
     traverse_0();

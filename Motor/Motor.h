@@ -10,14 +10,23 @@
 class Motor
 {
   public:
-    Motor (int p1,int p2, int ep);
-    void setDir(int dir);
-    void motorSpeed(int Speed);
+    // Functions
+    Motor(int in1Pin, int in2Pin, int enPin);
+    Motor(int in1Pin, int in2Pin, int enPin, int encaPin, int encbPin);
+    void setSpeed(int Speed);
 
-  private:
-    int pin1;
-    int pin2;
-    int enaPin;
+    // Pins
+    int in1;
+    int in2;
+    int en;
+    int enca;
+    int encb;
+
+    // Stored Encoder info
+    int pos;
+    int target;
+    int reached;
+
  };
 
  #endif
