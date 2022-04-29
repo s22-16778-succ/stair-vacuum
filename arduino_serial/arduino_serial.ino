@@ -1,5 +1,4 @@
 #include "arduino_serial.h"
-#include <Motor.h>
 
 Motor all_motors[] = { Motor(MOTORS[0][0],MOTORS[0][1],MOTORS[0][2]),
                        Motor(MOTORS[1][0],MOTORS[1][1],MOTORS[1][2]),
@@ -9,12 +8,17 @@ Motor all_motors[] = { Motor(MOTORS[0][0],MOTORS[0][1],MOTORS[0][2]),
 Motor all_lifts[] = {  Motor(LIFTS[0][0],LIFTS[0][1],LIFTS[0][2],LIFTS[0][3],LIFTS[0][4]),
                        Motor(LIFTS[1][0],LIFTS[1][1],LIFTS[1][2],LIFTS[1][3],LIFTS[1][4]) };
 
+Ultrasonic all_US[] = {  Ultrasonic(US[0][0], US[0][1]),
+                         Ultrasonic(US[1][0], US[1][1]),
+                         Ultrasonic(US[2][0], US[2][1]),
+                         Ultrasonic(US[3][0], US[3][1]) };
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Beginning Setup");
 
-  // On switch
-  pinMode(ON_SWITCH, INPUT); // use this to begin operation
+  // On switch (for beginning operation)
+  pinMode(ON_SWITCH, INPUT);
   
   // Ultrasonic Sensors
   for (int i=0; i<4; i++) {
@@ -81,25 +85,22 @@ void loop() {
   
 }
 
+double get_US(String sensor) {
+  if      (sensor.equals("FRONT_LEFT"))  return get_distance(US[0]);
+  else if (sensor.equals("FRONT_RIGHT")) return get_distance(US[1]);
+  else if (sensor.equals("LEFT"))        return get_distance(US[2]);
+  else if (sensor.equals("RIGHT"))       return get_distance(US[3]);
+}
 double get_distance(int U[]) {
   // Trigger
-  digitalWrite(U[0], LOW);
-  delayMicroseconds(5);
-  digitalWrite(U[0], HIGH);
-  delayMicroseconds(10);
+  digitalWrite(U[0], LOW);  delayMicroseconds(5);
+  digitalWrite(U[0], HIGH); delayMicroseconds(10);
   digitalWrite(U[0], LOW);
 
   // Echo
   double duration = pulseIn(U[1], HIGH);
   delay(50);
   return min(duration * SOUND_SPEED / 2, 100); // inches
-}
-
-double get_US(String sensor) {
-  if      (sensor.equals("FRONT_LEFT"))  return get_distance(US[0]);
-  else if (sensor.equals("FRONT_RIGHT")) return get_distance(US[1]);
-  else if (sensor.equals("LEFT"))        return get_distance(US[2]);
-  else if (sensor.equals("RIGHT"))       return get_distance(US[3]);
 }
 double front_US_within(int dist) {
   return (get_US("FRONT_LEFT")<dist && get_US("FRONT_RIGHT")<dist);
@@ -161,16 +162,17 @@ void sweep(String state) {
   move("OFF",0);
 }
 
-// speed>0 brings back lift (index 0) DOWN
-// positive is CCW, negative is CW
 void lifts(String state) {
 
-  // Change these vals to UP and DOWN targets!!!
-  // Call top (initial) position pos=0
-  // Call bottom position pos=4200
+  // Call top (initial) position pos=0 and bottom position pos=4200
   int target0 = (state.equals("UP")) ? 0 : 4200;
   int target1 = (state.equals("UP")) ? 0 : 4200;
+  lifts_target(target0, target1);
+}
 
+void lifts(String state0, String state1) {
+  int target0 = (state0.equals("UP")) ? -10000 : ((state0.equals("DOWN")) ? 10000 : 0);
+  int target1 = (state1.equals("UP")) ? -10000 : ((state1.equals("DOWN")) ? 10000 : 0);
   lifts_target(target0, target1);
 }
 
@@ -183,20 +185,16 @@ void lifts_target(int target0, int target1) {
     int pos    = all_lifts[i].pos;
     int target = all_lifts[i].target;
     all_lifts[i].reached=0;
-    
+
     if      (pos == target) all_lifts[i].reached=1;
     else if (pos < target)  all_lifts[i].setSpeed(LIFT_SPD[i]);  // positive speed means go DOWN
     else if (pos > target)  all_lifts[i].setSpeed(-LIFT_SPD[i]); // negative speed means go UP
   }
 
   while(!all_lifts[0].reached || !all_lifts[1].reached) {
-    Serial.print(all_lifts[0].target);
-    Serial.print(" ");
-    Serial.print(all_lifts[0].pos);
+    Serial.print(all_lifts[0].target); Serial.print(" "); Serial.print(all_lifts[0].pos);
     Serial.print("\t\t");
-    Serial.print(all_lifts[1].target);
-    Serial.print(" ");
-    Serial.println(all_lifts[1].pos);
+    Serial.print(all_lifts[1].target); Serial.print(" "); Serial.println(all_lifts[1].pos);
     delay(10);
   }
 }
@@ -289,14 +287,6 @@ void align() {
   }
 }
 
-void escape_operation() {
-  if      (POSITION.equals("BOTTOM")) move("FORWARD",  140, 1000);
-  else if (POSITION.equals("TOP"))    move("BACKWARD", 140, 1000);
-
-  buzz(); buzz();
-}
-
-
 // First half of robot goes up/down
 void traverse_0() {
   if (POSITION.equals("BOTTOM")) {
@@ -311,7 +301,7 @@ void traverse_0() {
   }
   else if (POSITION.equals("TOP")) {
     align();
-    while (limitState[0]==0 || limitState[0]==0) // looking down at next step
+    while (limitState[0]==0 || limitState[1]==0) // looking down at next step
       move("BACKWARD", MOTOR_SPD, MOTOR_DEL);
 
     align();
@@ -334,27 +324,32 @@ void traverse_1() {
   }
 }
 
+void escape_operation() {
+  if      (POSITION.equals("BOTTOM")) move("FORWARD",  140, 1000);
+  else if (POSITION.equals("TOP"))    move("BACKWARD", 140, 1000);
+
+  buzz(); buzz();
+}
 
 
 /** MAIN OPERATION CODE + TEST CASES */
 void code() {
 //   main_operation();
 
-//  lifts_target(-10000,-10000); // bring BOTH lifts all the way up
-//  lifts_target(-10000,0);      // bring FRONT lifts all the way up
-//  lifts_target(0,-10000);      // bring BACK lifts all the way up
-//  lifts_target(10000,10000); // bring BOTH lifts all the way down
-//  lifts_target(10000,0);      // bring FRONT lifts all the way down
-//  lifts_target(0,10000);      // bring BACK lifts all the way down
-
-//  all_lifts[0].setSpeed(-120);
-//    digitalWrite(all_lifts[0].in1, LOW);
-//    digitalWrite(all_lifts[0].in2, HIGH);
-//    analogWrite(all_lifts[0].en, 120);
-
+//  lifts("UP", "UP");     //  lifts_target(-10000,-10000); // bring BOTH lifts all the way up
+//  lifts("UP", "OFF");    //  lifts_target(-10000,0);      // bring FRONT lift all the way up
+//  lifts("OFF", "UP");    //  lifts_target(0,-10000);      // bring BACK lift all the way up
+//  lifts("DOWN", "DOWN"); //  lifts_target(10000,10000);   // bring BOTH lifts all the way down
+//  lifts("DOWN", "OFF");  //  lifts_target(10000,0);       // bring FRONT lift all the way down
+//  lifts("OFF", "DOWN");  //  lifts_target(0,10000);       // bring BACK lift all the way down
 //  lift_test();
 
-  move("FORWARD", 100);
+  move("FORWARD", MOTOR_SPD); // TEST THAT ALL WHEELS GO FORWARD BEFORE TESTING NEXT LINES!!!
+//  move("BACKWARD", MOTOR_SPD);
+//  move("LEFT", MOTOR_SPD);
+//  move("RIGHT", MOTOR_SPD);
+//  move("CW", MOTOR_SPD);
+//  move("CCW", MOTOR_SPD);
 }
 
 
@@ -400,8 +395,8 @@ void vacuum_test() {
 
 void sweep_test() {
   while(true) {
-    sweep("LEFT");
-    sweep("RIGHT");
+    sweep("LEFT");  delay(2000);
+    sweep("RIGHT"); delay(2000);
   }
 }
 
@@ -411,20 +406,15 @@ void lift_test() {
     lifts("DOWN"); delay(2000);
   }
 }
-//void lift_test(int i) { // for a single lift
-//  while(true) {
-//    lifts_single("DOWN", i); delay(2000);
-//    lifts_single("UP", i); delay(2000);
-//  }
-//}
-void lift_upstairs_test() {
+
+void traverse_upstairs_test() {
   POSITION = "BOTTOM";
   while(true) {
     traverse_0();
     traverse_1();
   }
 }
-void lift_downstairs_test() {
+void traverse_downstairs_test() {
   POSITION = "TOP";
   while(true) {
     traverse_0();

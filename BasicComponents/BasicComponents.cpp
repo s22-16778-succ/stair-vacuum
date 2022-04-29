@@ -1,5 +1,5 @@
 #include "Arduino.h"
-#include "Motor.h"
+#include "BasicComponents.h"
 
 // DC motors, no encoders
 Motor::Motor(int in1Pin, int in2Pin, int enPin)
@@ -29,7 +29,6 @@ Motor::Motor(int in1Pin, int in2Pin, int enPin, int encaPin, int encbPin)
   pos = 0;
   target = 0;
   reached = 0;
-  Serial.println("Setup DC+Encoder");
 }
 
 void Motor::setSpeed(int Speed)
@@ -49,4 +48,28 @@ void Motor::setSpeed(int Speed)
     analogWrite(en,max(min(-Speed,255),0));
   }
 
+}
+
+
+// Ultrasonic Sensor
+Ultrasonic::Ultrasonic(int trigPin, int echoPin)
+{
+  trig = trigPin;
+  echo = echoPin;
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+}
+
+// distance is in inches
+double Ultrasonic::get_distance()
+{
+  // Trigger
+  digitalWrite(trig, LOW);  delayMicroseconds(5);
+  digitalWrite(trig, HIGH); delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+
+  // Echo
+  double duration = pulseIn(echo, HIGH);
+  delay(50); // extra delay to prevent reading too quickly
+  return min(duration * SOUND_SPEED / 2, 100.0);
 }
