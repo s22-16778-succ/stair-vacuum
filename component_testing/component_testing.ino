@@ -1,14 +1,14 @@
-int SWITCH = 50;
-int LED = 13;
-
+#define LIMIT_SWITCH_PIN 7
+ 
 void setup() {
   Serial.begin(115200);
-  pinMode(SWITCH, INPUT);
-  pinMode(LED, OUTPUT);
+  pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP);
 }
-
+ 
 void loop() {
-//  if (digitalRead(SWITCH)) digitalWrite(LED);
-//  else(digitalRead(SWITCH)) digitalWrite(LED);
-  Serial.println(!digitalRead(SWITCH));
+ 
+  if (digitalRead(LIMIT_SWITCH_PIN) == HIGH) Serial.println("Activated!");
+  else                                       Serial.println("Not activated.");
+   
+  delay(100);
 }

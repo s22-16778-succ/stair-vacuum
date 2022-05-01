@@ -113,20 +113,28 @@ void buzz() {
 
 // Run the front left motor, front right motor, back left motor, and back right motor
 // Move/Rotate robot forever (speed is positive)
-void move(String dir, double spd) {
-  if      (dir.equals("OFF"))      motors(0,0,0,0);
-  else if (dir.equals("FORWARD"))  motors( spd,  spd,  spd,  spd);
-  else if (dir.equals("BACKWARD")) motors(-spd, -spd, -spd, -spd);
-  else if (dir.equals("LEFT"))     motors(-spd,  spd,  spd, -spd);
-  else if (dir.equals("RIGHT"))    motors( spd, -spd, -spd,  spd);
-  else if (dir.equals("CW"))       motors( spd, -spd,  spd, -spd);
-  else if (dir.equals("CCW"))      motors(-spd,  spd, -spd,  spd);
+void move(String dir) { // default speeds
+  move(dir, MOTOR_SPDS[0], MOTOR_SPDS[1], MOTOR_SPDS[2], MOTOR_SPDS[3]);
+}
+// Move wheels at set speed
+void move(String dir, int spd) {
+  move(dir, spd, spd, spd, spd);
 }
 // Move/Rotate robot for delay seconds (speed is positive)
-void move(String dir, double spd, double del) {
+void move(String dir, int spd, double del) {
   move(dir, spd);
   delay(del);
   move("OFF",0);
+}
+// Move each wheel separately
+void move(String dir, int spd0, int spd1, int spd2, int spd3) {
+  if      (dir.equals("OFF"))      motors(0,0,0,0);
+  else if (dir.equals("FORWARD"))  motors( spd0,  spd1,  spd2,  spd3);
+  else if (dir.equals("BACKWARD")) motors(-spd0, -spd1, -spd2, -spd3);
+  else if (dir.equals("LEFT"))     motors(-spd0,  spd1,  spd2, -spd3);
+  else if (dir.equals("RIGHT"))    motors( spd0, -spd1, -spd2,  spd3);
+  else if (dir.equals("CW"))       motors( spd0, -spd1,  spd2, -spd3);
+  else if (dir.equals("CCW"))      motors(-spd0,  spd1, -spd2,  spd3);
 }
 // speed is -255 to 255
 void motors(double spd0, double spd1, double spd2, double spd3) {
@@ -164,10 +172,17 @@ void sweep(String state) {
 
 void lifts(String state) {
 
-  // Call top (initial) position pos=0 and bottom position pos=4200
-  int target0 = (state.equals("UP")) ? 0 : 4200;
-  int target1 = (state.equals("UP")) ? 0 : 4200;
-  lifts_target(target0, target1);
+  // Call top (initial) position pos=0 and bottom position pos=LIFT_TARGET
+  int target = (state.equals("UP")) ? 0 : LIFT_TARGET;
+  if (state.equals("DOWN")) { // NEED TO TUNE THESE VALUES!!!
+    LIFT_SPD[0] = 145;
+    LIFT_SPD[1] = 145;
+  }
+  else {
+    LIFT_SPD[0] = 135;
+    LIFT_SPD[1] = 100;
+  }
+  lifts_target(target, target);
 }
 
 void lifts(String state0, String state1) {
@@ -342,14 +357,10 @@ void code() {
 //  lifts("DOWN", "DOWN"); //  lifts_target(10000,10000);   // bring BOTH lifts all the way down
 //  lifts("DOWN", "OFF");  //  lifts_target(10000,0);       // bring FRONT lift all the way down
 //  lifts("OFF", "DOWN");  //  lifts_target(0,10000);       // bring BACK lift all the way down
-//  lift_test();
+  lift_test();
 
-  move("FORWARD", MOTOR_SPD); // TEST THAT ALL WHEELS GO FORWARD BEFORE TESTING NEXT LINES!!!
-//  move("BACKWARD", MOTOR_SPD);
-//  move("LEFT", MOTOR_SPD);
-//  move("RIGHT", MOTOR_SPD);
-//  move("CW", MOTOR_SPD);
-//  move("CCW", MOTOR_SPD);
+//  move("FORWARD", MOTOR_SPD);
+//  left_right_test();
 }
 
 
@@ -393,6 +404,15 @@ void vacuum_test() {
   }
 }
 
+void left_right_test() {
+  while(true) {
+    move("LEFT"); delay(5000);
+    move("OFF"); delay(2000);
+    move("RIGHT"); delay(5000);
+    move("OFF"); delay(2000);
+  }
+}
+
 void sweep_test() {
   while(true) {
     sweep("LEFT");  delay(2000);
@@ -402,8 +422,8 @@ void sweep_test() {
 
 void lift_test() {
   while(true) {
-    lifts("UP");   delay(2000);
     lifts("DOWN"); delay(2000);
+    lifts("UP");   delay(2000);
   }
 }
 

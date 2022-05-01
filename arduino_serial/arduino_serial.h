@@ -1,4 +1,4 @@
-#include <BasicComponents.h>
+#include "BasicComponents.h"
 
 // I2C for IMU
 #include "ICM_20948.h"
@@ -33,7 +33,8 @@ int BUZZER_FREQ = 1100;
 
 // Wheels/DC Motors: [IN1, IN2, EN] for FRONT_LEFT, FRONT_RIGHT, BACK_LEFT, BACK_RIGHT
 int MOTORS[4][3] = {{36,37,9}, {30,31,6}, {34,35,8}, {32,33,7}};
-int MOTOR_SPD = 120; // default motor speed
+int MOTOR_SPD = 120; // default motor speeds
+int MOTOR_SPDS[4] = {200,200,200,200}; // default motor speeds per motor (runs very well at same speeds!)
 int MOTOR_DEL =  10; // default motor delay (ms) (step size)
 
 // Vacuum Motor
@@ -45,7 +46,8 @@ Servo ESC;     // create servo object to control the ESC
 
 // Lift Motors: [IN1, IN2, EN, ENCA, ENCB] for FRONT_LIFT, BACK_LIFT
 int LIFTS[2][6] = {{42,43,4,2,45}, {38,39,5,3,41}};
-int LIFT_SPD[2] = {145, 120}; // default lift motor speeds
+int LIFT_SPD[2] = {145, 145}; // default lift motor speeds (front is slightly faster)
+int LIFT_TARGET = 4350; // encoder targets for "DOWN"; should be same for both lifts
 
 // Global state
 String POSITION;
