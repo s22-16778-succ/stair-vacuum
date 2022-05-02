@@ -1,3 +1,0 @@
-Motor	KEYWORD1
-setDir	KEYWORD2
-motorSpeed	KEYWORD2
