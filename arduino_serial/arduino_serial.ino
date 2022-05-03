@@ -62,30 +62,11 @@ void setup() {
   code();
 }
 
-
 void loop() {
-//  if (Serial.available() > 0) {
-//    // Read in Raspberry Pi command
-//    Serial.readStringUntil('\n').toCharArray(command, 100);
-//    ptr = strtok(command, ",");
-//    int index = 0;
-//    while (ptr != NULL) {
-//      strings[index++] = ptr;
-//      ptr = strtok(NULL, ",");
-//    }
-//
-//    // Interpret the strings
-//    // for (int i=0; i<index; i++)
-//    //  Serial.println(strings[i]);
-//    
-//    if (strings[0].equals("get_US"))
-//      get_US(strings[1]);
-//    if (strings[0].equals("buzz"))
-//      buzz();
-//
-//  }
   
 }
+
+
 
 double get_US(String sensor) {
   if      (sensor.equals("FRONT_LEFT"))  return get_distance(US[0]);
@@ -114,29 +95,38 @@ void buzz() {
 }
 
 // Run the front left motor, front right motor, back left motor, and back right motor
-// Move/Rotate robot forever (speed is positive)
-void move(String dir) { // default speeds
+// Move/Rotate robot forever at default speed
+void move(String dir) {
   move(dir, MOTOR_SPDS[0], MOTOR_SPDS[1], MOTOR_SPDS[2], MOTOR_SPDS[3]);
 }
 // Move wheels at set speed
 void move(String dir, int spd) {
   move(dir, spd, spd, spd, spd);
 }
+// Move robot for delay seconds (default speed)
+void move_delay(String dir, double del) {
+  move(dir);
+  delay(del);
+  move("OFF");
+}
 // Move/Rotate robot for delay seconds (speed is positive)
 void move(String dir, int spd, double del) {
   move(dir, spd);
   delay(del);
-  move("OFF",0);
+  move("OFF");
 }
 // Move each wheel separately
 void move(String dir, int spd0, int spd1, int spd2, int spd3) {
-  if      (dir.equals("OFF"))      motors(0,0,0,0);
-  else if (dir.equals("FORWARD"))  motors( spd0,  spd1,  spd2,  spd3);
-  else if (dir.equals("BACKWARD")) motors(-spd0, -spd1, -spd2, -spd3);
-  else if (dir.equals("LEFT"))     motors(-spd0,  spd1,  spd2, -spd3);
-  else if (dir.equals("RIGHT"))    motors( spd0, -spd1, -spd2,  spd3);
-  else if (dir.equals("CW"))       motors( spd0, -spd1,  spd2, -spd3);
-  else if (dir.equals("CCW"))      motors(-spd0,  spd1, -spd2,  spd3);
+  if      (dir.equals("OFF"))       motors(0,0,0,0);
+  else if (dir.equals("FORWARD"))   motors( spd0,  spd1,  spd2,  spd3);
+  else if (dir.equals("BACKWARD"))  motors(-spd0, -spd1, -spd2, -spd3);
+  else if (dir.equals("LEFT"))      motors(-spd0,  spd1,  spd2, -spd3);
+  else if (dir.equals("RIGHT"))     motors( spd0, -spd1, -spd2,  spd3);
+  else if (dir.equals("CW"))        motors( spd0, -spd1,  spd2, -spd3);
+  else if (dir.equals("CCW"))       motors(-spd0,  spd1, -spd2,  spd3);
+  
+  else if (dir.equals("PIVOT_CW"))  motors(-spd0,     0,     0,  spd3);
+  else if (dir.equals("PIVOT_CCW")) motors(    0,  spd1, -spd2,     0);
 }
 // speed is -255 to 255
 void motors(double spd0, double spd1, double spd2, double spd3) {
@@ -175,16 +165,9 @@ void sweep(String state) {
 void lifts(String state) {
 
   // Call top (initial) position pos=0 and bottom position pos=LIFT_TARGET
-  int target = (state.equals("UP")) ? 0 : LIFT_TARGET;
-  if (state.equals("DOWN")) { // NEED TO TUNE THESE VALUES!!!
-    LIFT_SPD[0] = 145;
-    LIFT_SPD[1] = 145;
-  }
-  else {
-    LIFT_SPD[0] = 135;
-    LIFT_SPD[1] = 100;
-  }
-  lifts_target(target, target);
+  int target0 = (state.equals("UP")) ? 0 : LIFT_TARGET[0];
+  int target1 = (state.equals("UP")) ? 0 : LIFT_TARGET[1];
+  lifts_target(target0, target1);
 }
 
 void lifts(String state0, String state1) {
@@ -295,13 +278,23 @@ double get_yaw() {
 }
 // Align robot to be (roughly) parallel to stairs
 void align() {
-  double thr=5, yaw;
+//  double thr=5, yaw;
+//  while(true) {
+//    yaw = get_yaw();
+//    if      (yaw >  thr) move("CW",  MOTOR_SPD, MOTOR_DEL);
+//    else if (yaw < -thr) move("CCW", MOTOR_SPD, MOTOR_DEL);
+//    else               { move("OFF", 0); return; }
+//  }
+
+  double thr = 0.8, d;
   while(true) {
-    yaw = get_yaw();
-    if      (yaw >  thr) move("CW",  MOTOR_SPD, MOTOR_DEL);
-    else if (yaw < -thr) move("CCW", MOTOR_SPD, MOTOR_DEL);
-    else               { move("OFF", 0); return; }
+    d = get_US("FRONT_LEFT") - get_US("FRONT_RIGHT");
+    if      (d > thr)  move("PIVOT_CW",  MOTOR_SPD, MOTOR_DEL);
+    else if (d < -thr) move("PIVOT_CCW", MOTOR_SPD, MOTOR_DEL);
+    else             { move("OFF"); return; }
+    Serial.println(d);
   }
+  
 }
 
 // First half of robot goes up/down
@@ -363,7 +356,25 @@ void code() {
 
 //  move("FORWARD", MOTOR_SPD);
 //  left_right_test();
-  complex_test();
+//  complex_test();
+
+//  while(true) {
+//    lifts_target(FRONT_LIFT_LOWER, 0); // lower slightly
+//    lifts("DOWN");
+//    move("FORWARD", 180); while(!front_US_within(6)); // go forward as much as possible
+//    move_delay("OFF", 500);
+//    align();
+//    move("BACKWARD", 80, 150); // back away from the stairs a bit
+//    lifts("UP");
+//    move("FORWARD", 180); while(!front_US_within(3)); // go forward as much as possible
+//    move_delay("OFF", 500);
+//    align();
+//  }
+
+  while(true) {
+    vacuum("ON");  delay(5000);
+    vacuum("OFF"); delay(5000);
+  }
   
 }
 
@@ -373,11 +384,10 @@ void main_operation() {
 
   vacuum("OFF");
   lifts("UP");
+
+  if (digitalRead(POS_SWITCH)==LOW) POSITION = "TOP";
+  else                              POSITION = "BOTTOM";
   
-  if (front_US_within(10)) POSITION = "BOTTOM";
-  else                     POSITION = "TOP";
-
-
   for (int i=0; i<STEPS; i++) {
     traverse_0();
     sweep("LEFT");
@@ -417,12 +427,11 @@ void left_right_test() {
   }
 }
 
-void complex_test() {
+void complex_left_right_test() {
   while(true) {
     move("LEFT"); delay(300);
     move("OFF"); delay(100);
-//    move("FORWARD", 50); delay(100);
-    motors(120, 80, 120, 80); delay(100);
+    move("FORWARD", 80); delay(100);
     move("OFF"); delay(100);
   }
 }
