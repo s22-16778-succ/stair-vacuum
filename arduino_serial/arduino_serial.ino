@@ -19,6 +19,7 @@ void setup() {
 
   // On switch (for beginning operation)
   pinMode(ON_SWITCH, INPUT);
+  pinMode(POS_SWITCH, INPUT);
   
   // Ultrasonic Sensors
   for (int i=0; i<4; i++) {
@@ -53,9 +54,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(all_lifts[1].enca), readLift<1>, RISING);
 
   // IMU setup
-  // IMU_setup();
+//  IMU_setup(); // Comment/uncomment this !!!
 
   // Run the code!
+  while(digitalRead(ON_SWITCH)) ;
   Serial.println("Beginning code");
   code();
 }
@@ -351,16 +353,18 @@ void escape_operation() {
 void code() {
 //   main_operation();
 
-//  lifts("UP", "UP");     //  lifts_target(-10000,-10000); // bring BOTH lifts all the way up
-//  lifts("UP", "OFF");    //  lifts_target(-10000,0);      // bring FRONT lift all the way up
-//  lifts("OFF", "UP");    //  lifts_target(0,-10000);      // bring BACK lift all the way up
-//  lifts("DOWN", "DOWN"); //  lifts_target(10000,10000);   // bring BOTH lifts all the way down
-//  lifts("DOWN", "OFF");  //  lifts_target(10000,0);       // bring FRONT lift all the way down
-//  lifts("OFF", "DOWN");  //  lifts_target(0,10000);       // bring BACK lift all the way down
-  lift_test();
+//  lifts("UP", "UP");     // bring BOTH lifts all the way up
+//  lifts("UP", "OFF");    // bring FRONT lift all the way up
+//  lifts("OFF", "UP");    // bring BACK lift all the way up
+//  lifts("DOWN", "DOWN"); // bring BOTH lifts all the way down
+//  lifts("DOWN", "OFF");  // bring FRONT lift all the way down
+//  lifts("OFF", "DOWN");  // bring BACK lift all the way down
+//  lift_test();
 
 //  move("FORWARD", MOTOR_SPD);
 //  left_right_test();
+  complex_test();
+  
 }
 
 
@@ -410,6 +414,16 @@ void left_right_test() {
     move("OFF"); delay(2000);
     move("RIGHT"); delay(5000);
     move("OFF"); delay(2000);
+  }
+}
+
+void complex_test() {
+  while(true) {
+    move("LEFT"); delay(300);
+    move("OFF"); delay(100);
+//    move("FORWARD", 50); delay(100);
+    motors(120, 80, 120, 80); delay(100);
+    move("OFF"); delay(100);
   }
 }
 

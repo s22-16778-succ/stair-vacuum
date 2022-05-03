@@ -12,7 +12,8 @@ char command[100];
 char *ptr = NULL;
 
 // ON switch
-int ON_SWITCH = 12;
+int ON_SWITCH = 27;  // LOW (|) means start, HIGH (O) means wait
+int POS_SWITCH = 26; // LOW (|) means TOP, HIGH (O) means BOTTOM
 
 // Ultrasonic Sensors: [TRIG, ECHO] for FRONT_LEFT, FRONT_RIGHT, LEFT, RIGHT
 int US[4][2] = {{52,53}, {50,51}, {48,49}, {46,47}};
@@ -34,7 +35,8 @@ int BUZZER_FREQ = 1100;
 // Wheels/DC Motors: [IN1, IN2, EN] for FRONT_LEFT, FRONT_RIGHT, BACK_LEFT, BACK_RIGHT
 int MOTORS[4][3] = {{36,37,9}, {30,31,6}, {34,35,8}, {32,33,7}};
 int MOTOR_SPD = 120; // default motor speeds
-int MOTOR_SPDS[4] = {200,200,200,200}; // default motor speeds per motor (runs very well at same speeds!)
+//int MOTOR_SPDS[4] = {175,175,175,175}; // default motor speeds per motor (runs very well at same speeds!)
+int MOTOR_SPDS[4] = {178,178,175,175}; // default motor speeds per motor (runs very well at same speeds!)
 int MOTOR_DEL =  10; // default motor delay (ms) (step size)
 
 // Vacuum Motor
@@ -52,4 +54,3 @@ int LIFT_TARGET = 4350; // encoder targets for "DOWN"; should be same for both l
 // Global state
 String POSITION;
 int STEPS  = 8;
-int ON_PIN = 0; // this will be a button
