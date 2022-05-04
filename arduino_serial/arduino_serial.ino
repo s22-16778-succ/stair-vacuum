@@ -19,7 +19,7 @@ void setup() {
 
   // On switch (for beginning operation)
   pinMode(ON_SWITCH, INPUT);
-  pinMode(POS_SWITCH, INPUT);
+  pinMode(POS_SWITCH, INPUT_PULLUP);
   
   // Ultrasonic Sensors
   for (int i=0; i<4; i++) {
@@ -28,8 +28,8 @@ void setup() {
   }
 
   // Bumpers
-  pinMode(BUMPERS[0], INPUT);
-  pinMode(BUMPERS[1], INPUT);
+  pinMode(BUMPERS[0], INPUT_PULLUP);
+  pinMode(BUMPERS[1], INPUT_PULLUP);
 
   // Limit Switches
   limitState[0]=0; limitState[1]=0;
@@ -125,8 +125,8 @@ void move(String dir, int spd0, int spd1, int spd2, int spd3) {
   else if (dir.equals("CW"))        motors( spd0, -spd1,  spd2, -spd3);
   else if (dir.equals("CCW"))       motors(-spd0,  spd1, -spd2,  spd3);
   
-  else if (dir.equals("PIVOT_CW"))  motors(-spd0,     0,     0,  spd3);
-  else if (dir.equals("PIVOT_CCW")) motors(    0,  spd1, -spd2,     0);
+  else if (dir.equals("PIVOT_CW"))  motors(spd0,     0,     spd3,  0);
+  else if (dir.equals("PIVOT_CCW")) motors(   0,  spd1,  0,     spd2);
 }
 // speed is -255 to 255
 void motors(double spd0, double spd1, double spd2, double spd3) {
@@ -145,21 +145,23 @@ void readLimit() {
 
 // Turn vacuum ON or OFF
 void vacuum(String state) {
+  // FOR NOW, DO NOTHING!!!
+  
   if      (state.equals("ON"))  ESC.writeMicroseconds(MAX_PULSE);
   else if (state.equals("OFF")) ESC.write(0);
 }
 void sweep(String state) {
-  double thr=5;
   vacuum("ON");
 
-  move(state, MOTOR_SPD, MOTOR_DEL);
   while(true) {
+    move(state, MOTOR_SPD, 800);
+    move("FORWARD", MOTOR_SPD, 800);
     if (state.equals("LEFT")  && digitalRead(BUMPERS[0]) == LOW) break;
     if (state.equals("RIGHT") && digitalRead(BUMPERS[1]) == LOW) break;
   }
   
   vacuum("OFF");
-  move("OFF",0);
+  move("OFF");
 }
 
 void lifts(String state) {
@@ -278,19 +280,12 @@ double get_yaw() {
 }
 // Align robot to be (roughly) parallel to stairs
 void align() {
-//  double thr=5, yaw;
-//  while(true) {
-//    yaw = get_yaw();
-//    if      (yaw >  thr) move("CW",  MOTOR_SPD, MOTOR_DEL);
-//    else if (yaw < -thr) move("CCW", MOTOR_SPD, MOTOR_DEL);
-//    else               { move("OFF", 0); return; }
-//  }
 
-  double thr = 0.8, d;
+  double d;
   while(true) {
     d = get_US("FRONT_LEFT") - get_US("FRONT_RIGHT");
-    if      (d > thr)  move("PIVOT_CW",  MOTOR_SPD, MOTOR_DEL);
-    else if (d < -thr) move("PIVOT_CCW", MOTOR_SPD, MOTOR_DEL);
+    if      (d >  ALIGN_THRESH) move("CW",  MOTOR_SPD, MOTOR_DEL);
+    else if (d < -ALIGN_THRESH) move("CCW", MOTOR_SPD, MOTOR_DEL);
     else             { move("OFF"); return; }
     Serial.println(d);
   }
@@ -300,14 +295,15 @@ void align() {
 // First half of robot goes up/down
 void traverse_0() {
   if (POSITION.equals("BOTTOM")) {
+
+    move("FORWARD", 180, 1000);
+    Serial.println("Trying to align:");
     align();
-    while (!front_US_within(5)) // looking at next step
-      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
+    lifts_target(FRONT_LIFT_LOWER, 0); // lower slightly
+    lifts("DOWN");
+    move("FORWARD", 180, 1000);
+    align();
     
-    align();
-    lifts("DOWN"); // push up
-    while (!front_US_within(10)) // looking at future step
-      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
   }
   else if (POSITION.equals("TOP")) {
     align();
@@ -322,10 +318,16 @@ void traverse_0() {
 // Second half of robot goes up/down
 void traverse_1() {
   if (POSITION.equals("BOTTOM")) {
+//    align();
+//    lifts("UP");
+//    while (!front_US_within(5)) // looking at next step
+//      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
+
     align();
     lifts("UP");
-    while (!front_US_within(5)) // looking at next step
-      move("FORWARD", MOTOR_SPD, MOTOR_DEL);
+    move("FORWARD", 180, 800);
+    align();
+      
   }
   else if (POSITION.equals("TOP")) {
     align();
@@ -344,7 +346,15 @@ void escape_operation() {
 
 /** MAIN OPERATION CODE + TEST CASES */
 void code() {
-//   main_operation();
+  main_operation();
+//  while(true) {
+//    Serial.println(digitalRead(BUMPERS[0]));
+//  }
+
+//  motors(200,0,0,0); delay(1000); move("OFF");
+//  motors(0,200,0,0); delay(1000); move("OFF");
+//  motors(0,0,200,0); delay(1000); move("OFF");
+//  motors(0,0,0,200); delay(1000); move("OFF");
 
 //  lifts("UP", "UP");     // bring BOTH lifts all the way up
 //  lifts("UP", "OFF");    // bring FRONT lift all the way up
@@ -371,10 +381,11 @@ void code() {
 //    align();
 //  }
 
-  while(true) {
-    vacuum("ON");  delay(5000);
-    vacuum("OFF"); delay(5000);
-  }
+//  while(true) {
+//    Serial.println("Hi");
+//    vacuum("ON");  delay(5000);
+//    vacuum("OFF"); delay(5000);
+//  }
   
 }
 
@@ -383,32 +394,107 @@ void main_operation() {
   buzz(); buzz(); delay(100); // operation is starting!
 
   vacuum("OFF");
-  lifts("UP");
 
-  if (digitalRead(POS_SWITCH)==LOW) POSITION = "TOP";
-  else                              POSITION = "BOTTOM";
+//  if (digitalRead(POS_SWITCH)==LOW) POSITION = "TOP";
+//  else                              POSITION = "BOTTOM";
+
+  POSITION = "BOTTOM";
+
+  // Reinitialize motors
+  for (int i=0; i<4; i++)
+    all_lifts[i].pos=0;
+
+  if (POSITION.equals("BOTTOM")) {
+    for (int i=0; i<STEPS; i++) {
+      // TRAVERSE0
+      move("FORWARD", 140, 1500);
+      align();
+      move("BACKWARD", 100, 120); // back away from the stairs a bit
+      lifts_target(FRONT_LIFT_LOWER, 0); // lower slightly
+      lifts("DOWN");
+      move("FORWARD", 230, 1000);
+      move("BACKWARD", 100, 120); // back away from the stairs a bit
+      align();
   
-  for (int i=0; i<STEPS; i++) {
-    traverse_0();
-    sweep("LEFT");
-
-    traverse_1();
-    sweep("RIGHT");
+  
+      // TRAVERSE1
+      lifts("UP");
+      lifts_target(0, 80);
+      move("FORWARD", 180, 2000);
+      align();
+  
+      if (i%2==0) {
+        // SWEEP LEFT
+        vacuum("ON");
+        while(true) {
+          move("LEFT", 240, 1000);
+          move("FORWARD", MOTOR_SPD, 900);
+          align();
+          if (digitalRead(BUMPERS[0]) == HIGH) break;
+        }
+        vacuum("OFF");
+        move("OFF");
+      }
+      else {
+        // SWEEP RIGHT
+        vacuum("ON");
+        while(true) {
+          move("RIGHT", 240, 1000);
+          move("FORWARD", MOTOR_SPD, 900);
+          align();
+          if (digitalRead(BUMPERS[1]) == HIGH) break;
+        }
+        vacuum("OFF");
+        move("OFF");
+      }
+    }
   }
+  else { // POSITION == "TOP"!!!
+    for (int i=0; i<STEPS; i++) {
+      
+      // TRAVERSE0
+      align();
+      move("BACKWARD", 100, 200); // back away from the stairs a bit
+      lifts_target(FRONT_LIFT_LOWER, 0); // lower slightly
+      lifts("DOWN");
+  
+      // TRAVERSE1
+      align();
+      move("BACKWARD", 175, 800); // back away from the stairs a bit
+      lifts("UP");
+      align();
+      
+  
+      if (i%2==1) {
+        // SWEEP LEFT
+        vacuum("ON");
+        while(true) {
+          move("LEFT", 240, 1000);
+          move("FORWARD", MOTOR_SPD, 900);
+          align();
+          if (digitalRead(BUMPERS[0]) == HIGH) break;
+        }
+        vacuum("OFF");
+        move("OFF");
+      }
+      else {
+        // SWEEP RIGHT
+        vacuum("ON");
+        while(true) {
+          move("RIGHT", 240, 1000);
+          move("FORWARD", MOTOR_SPD, 900);
+          align();
+          if (digitalRead(BUMPERS[1]) == HIGH) break;
+        }
+        vacuum("OFF");
+        move("OFF");
+      }
+    }
+  }
+  
   
   escape_operation();
   
-}
-
-
-void align_test() {
-  while(true) {
-    move("CW", MOTOR_SPD, 1000);
-    align(); delay(3000);
-    
-    move("CCW", MOTOR_SPD, 1000);
-    align(); delay(3000);
-  }
 }
 
 void vacuum_test() {
@@ -436,31 +522,9 @@ void complex_left_right_test() {
   }
 }
 
-void sweep_test() {
-  while(true) {
-    sweep("LEFT");  delay(2000);
-    sweep("RIGHT"); delay(2000);
-  }
-}
-
 void lift_test() {
   while(true) {
     lifts("DOWN"); delay(2000);
     lifts("UP");   delay(2000);
-  }
-}
-
-void traverse_upstairs_test() {
-  POSITION = "BOTTOM";
-  while(true) {
-    traverse_0();
-    traverse_1();
-  }
-}
-void traverse_downstairs_test() {
-  POSITION = "TOP";
-  while(true) {
-    traverse_0();
-    traverse_1();
   }
 }
