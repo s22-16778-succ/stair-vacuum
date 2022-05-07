@@ -99,18 +99,15 @@ def escape_operation(POSITION):
 	buzz()
 
 if __name__ == "__main__":
-	'''
-	Step 1: Setup. Detect whether at top or bottom of stairs.
-	Assume that user faces the robot upstairs (orientation error allowed).
-	'''
+	# Step 1: Setup. Detect whether at top or bottom of stairs.
+	# Assume that user faces the robot upstairs (orientation error allowed).
 	POSITION = None # whether robot started at top or bottom
 	STEPS = 8 # stairwell has 8 steps
 	PASSES = 0 # number of steps cleaned
 	WALL_THRESHOLD = 3 # when sensor is <WALL_THRESHOLD, robot has "touched" the wall
 	
 	vacuum('OFF')
-	lifts('UP')
-	
+	lifts('UP')	
 	if (front_left_sensor() < 30 and front_right_sensor() < 30):
 		POSITION = 'BOTTOM'
 	else:
@@ -118,30 +115,20 @@ if __name__ == "__main__":
 	
 	
 	while(STEPS != PASSES):
-		'''
-		Step 2: Get to first half of next step.
-		'''
+		# Step 2: Get to first half of next step.
 		traverse_0(POSITION)
 		traverse_1(POSITION)
 		
-		'''
-		Step 3: Clean first half
-		'''
+		# Step 3: Clean first half
 		vacuum('LEFT')
 		
-		'''
-		Step 4: Get to second half of next step.
-		'''
+		# Step 4: Get to second half of next step.
 		traverse_2(POSITION)
 		
-		'''
-		Step 5: Clean second half
-		'''
+		# Step 5: Clean second half
 		vacuum('RIGHT')
 		
 		PASSES += 1
 	
-	'''
-	Step 6: Exit stairs at the very end
-	'''
+	# Step 6: Exit stairs at the very end
 	escape_operation(POSITION)
