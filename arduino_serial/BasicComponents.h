@@ -1,8 +1,12 @@
 /*
-  BasicComponents.h - Library for using Motors (with L289N motor driver)
-  Created by Brandon Wang and Jaiden Napier April 16 2022.
-  Released into the public domain.
-*/
+ * 16-779 Mechatronic Design
+ * Team E: Stair Utility Cleaning Contraption
+ * Felipe Borja, Jaiden Napier, Ignacio Peon, Sahil Saini, Brandon Wang
+ * Created by: Jaiden Napier and Brandon Wang on 4/16/2022
+ * Purpose of Code: library header file for initializing and controlling
+ *        motors (with L289N motor driver) and ultrasonic sensors.
+ */
+ 
 #ifndef BasicComponents_h
 #define BasicComponents_h
 

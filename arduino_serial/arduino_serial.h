@@ -1,3 +1,13 @@
+/*
+ * 16-779 Mechatronic Design
+ * Team E: Stair Utility Cleaning Contraption
+ * Felipe Borja, Jaiden Napier, Ignacio Peon, Sahil Saini, Brandon Wang
+ * Created by: Brandon Wang on 4/28/2022
+ * Purpose of Code: header file for defining global variances and parameters for
+ *    all functions in arduino_serial. Includes pin assignments, speeds, target
+ *    positions, and data structures for component states.
+ */
+
 #include "BasicComponents.h"
 
 // I2C for IMU

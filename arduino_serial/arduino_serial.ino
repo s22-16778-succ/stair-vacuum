@@ -1,3 +1,13 @@
+/*
+ * 16-779 Mechatronic Design
+ * Team E: Stair Utility Cleaning Contraption
+ * Felipe Borja, Jaiden Napier, Ignacio Peon, Sahil Saini, Brandon Wang
+ * Created by: Brandon Wang on 4/10/2022
+ * Purpose of Code: all functions for testing and the main operation.
+ *      Includes setup, component updates, and debugging for high-level
+ *      and low-level operations.
+ */
+
 #include "arduino_serial.h"
 
 Motor all_motors[] = { Motor(MOTORS[0][0],MOTORS[0][1],MOTORS[0][2]),
